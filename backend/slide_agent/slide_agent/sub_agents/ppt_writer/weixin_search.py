@@ -6,15 +6,16 @@
 # @Contact : github: johnson7788
 # @Desc  : 使用搜索搜索微信公众号文章，先关机关键词搜索搜狗，获取链接，然后使用get_real_url获取真实链接，最后使用真实链接获取公众号内容。
 import json
+import re
 import asyncio
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 import requests
 from lxml import html
 from urllib.parse import quote
-from .cache_utils import cache_decorator
 import time
 
-@cache_decorator
+
 def sogou_weixin_search(query: str) -> List[Dict[str, str]]:
     """在搜狗微信搜索中搜索指定关键词并返回结果列表"""
     headers = {
@@ -52,10 +53,17 @@ def sogou_weixin_search(query: str) -> List[Dict[str, str]]:
                 link = element.get('href')
                 if link and not link.startswith('http'):
                     link = 'https://weixin.sogou.com' + link
+                raw_time = time_elem.text_content().strip()
+                # 从 "document.write(timeConvert('1770861772'))" 中提取时间戳
+                ts_match = re.search(r"timeConvert\('(\d+)'\)", raw_time)
+                if ts_match:
+                    publish_time = datetime.fromtimestamp(int(ts_match.group(1))).strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    publish_time = raw_time
                 results.append({
                     'title': title,
                     'link': link,
-                    'publish_time': time_elem.text_content().strip()
+                    'publish_time': publish_time
                 })
 
             return results
@@ -64,7 +72,6 @@ def sogou_weixin_search(query: str) -> List[Dict[str, str]]:
     except Exception as e:
         return []
 
-@cache_decorator
 def get_real_url(sogou_url: str) -> str:
     """从搜狗微信链接获取真实的微信公众号文章链接"""
     headers = {
@@ -97,7 +104,6 @@ def get_real_url(sogou_url: str) -> str:
     except Exception as e:
         return ""
 
-@cache_decorator
 def get_article_content(real_url: str, referer: str) -> str:
     """获取微信公众号文章的正文内容"""
     headers = {
