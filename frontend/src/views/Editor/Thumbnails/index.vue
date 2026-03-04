@@ -61,7 +61,7 @@
             v-contextmenu="contextmenusThumbnailItem"
           >
             <div class="label" :class="{ 'offset-left': index >= 99 }">{{ fillDigit(index + 1, 2) }}</div>
-            <ThumbnailSlide class="thumbnail" :slide="element" :size="120" :visible="index < slidesLoadLimit" />
+            <ThumbnailSlide class="thumbnail" :slide="element" :size="thumbnailSize" :visible="index < slidesLoadLimit" />
   
             <div class="note-flag" v-if="element.notes && element.notes.length" @click="openNotesPanel()">{{ element.notes.length }}</div>
           </div>
@@ -74,10 +74,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, watch, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore, useSlidesStore, useKeyboardStore } from '@/store'
-import { fillDigit } from '@/utils/common'
+import { fillDigit, isPC } from '@/utils/common'
 import { isElementInViewport } from '@/utils/element'
 import type { ContextmenuItem } from '@/components/Contextmenu/types'
 import useSlideHandler from '@/hooks/useSlideHandler'
@@ -100,6 +100,20 @@ const { slides, slideIndex, currentSlide } = storeToRefs(slidesStore)
 const { ctrlKeyState, shiftKeyState } = storeToRefs(keyboardStore)
 
 const { slidesLoadLimit } = useLoadSlides()
+
+const isMobile = !isPC()
+const windowWidth = ref(window.innerWidth)
+
+const onResize = () => { windowWidth.value = window.innerWidth }
+if (isMobile) {
+  onMounted(() => window.addEventListener('resize', onResize))
+  onUnmounted(() => window.removeEventListener('resize', onResize))
+}
+
+const thumbnailSize = computed(() => {
+  if (!isMobile) return 120
+  return windowWidth.value - 48
+})
 
 const selectedSlidesIndex = computed(() => [..._selectedSlidesIndex.value, slideIndex.value])
 

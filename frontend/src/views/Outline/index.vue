@@ -963,31 +963,105 @@ const uploadWordAndCreateOutline = async (file: File) => {
 }
 
 @media (max-width: 768px) {
+  .aippt-dialog { padding: 24px 16px; }
+
   .header-section {
+    margin-bottom: 30px;
     .template-btn {
       position: static;
       margin-bottom: 24px;
     }
 
-    .brand .title {
-      .title-main {
-        font-size: 32px;
+    .brand {
+      margin-bottom: 24px;
+      .title {
+        .title-main { font-size: 32px; }
+        .title-badge { font-size: 10px; padding: 3px 8px; }
       }
+      .subtitle { font-size: 13px; }
     }
+    .flow-connector { width: 50px; }
   }
 
   .setup-section {
+    .input-module { padding: 20px 16px; border-radius: 16px; }
+    .text-input { min-height: 120px; font-size: 15px; }
+    .input-actions {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .buttons-wrapper {
+      flex-direction: column;
+      gap: 10px;
+    }
+    .generate-btn {
+      width: 100%;
+      justify-content: center;
+    }
     .config-module .config-grid {
       grid-template-columns: 1fr;
+    }
+    .bubble-section { margin-bottom: 20px; }
+    .bubble-item { padding: 8px 14px; font-size: 13px; }
+  }
+
+  .outline-section {
+    padding: 20px 16px;
+    border-radius: 16px;
+
+    .outline-container { padding: 16px; min-height: 300px; }
+    .outline-display { max-height: 280px; font-size: 14px; }
+    .editor-view { max-height: 350px; }
+
+    .references-section {
+      .references-container {
+        padding: 16px;
+        max-height: 400px;
+      }
+      .reference-item {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .reference-number { width: auto; }
+      .reference-title { font-size: 14px; }
+      .reference-abstract { -webkit-line-clamp: 2; line-clamp: 2; }
+      .reference-info { flex-wrap: wrap; gap: 8px; }
     }
   }
 
   .action-group {
     flex-direction: column;
+    gap: 12px;
 
     .act-btn {
       width: 100%;
+      padding: 12px 24px;
     }
+  }
+}
+
+@media (max-width: 480px) {
+  .aippt-dialog { padding: 16px 12px; }
+
+  .header-section {
+    margin-bottom: 20px;
+    .brand .title .title-main { font-size: 28px; }
+    .brand .subtitle { font-size: 12px; }
+  }
+
+  .setup-section {
+    .input-module { padding: 16px 12px; }
+    .control-group {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 4px !important;
+    }
+  }
+
+  .outline-section {
+    padding: 16px 12px;
+    .outline-container { padding: 12px; }
+    .references-section .references-container { padding: 12px; }
   }
 }
 

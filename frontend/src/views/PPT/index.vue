@@ -88,6 +88,7 @@ import type { Slide, SlideTheme } from '@/types/slides'
 import { useMainStore, useSlidesStore } from '@/store'
 import Button from '@/components/Button.vue'
 import Checkbox from '@/components/Checkbox.vue'
+import { isPC } from '@/utils/common'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,7 +122,7 @@ const createPPT = async () => {
 
   slideStore.resetSlides()
 
-  router.push(`/editor?session_id=${sessionId.value}`)
+  router.push(`/editor?session_id=${sessionId.value}${isPC() ? '&isPc=true' : ''}`)
 
   try {
     const stream = await api.AIPPT_Content({
@@ -444,11 +445,17 @@ const createPPT = async () => {
   .header { .title { font-size: 28px; } .subtitle { font-size: 14px; } }
   .select-template {
     .templates-container { padding: 16px; }
-    .templates { grid-template-columns: 1fr; gap: 14px; }
+    .templates { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .template-card .template-info { padding: 8px 10px; .template-name { font-size: 12px; } }
     .actions { flex-direction: column; gap: 12px; .btn { width: 100%; max-width: 320px; } }
   }
 }
 @media (max-width: 480px) {
+  .aippt-dialog { padding: 16px 12px; }
   .header .title { font-size: 24px; }
+  .select-template {
+    .templates-container { padding: 12px; }
+    .templates { grid-template-columns: 1fr; gap: 10px; }
+  }
 }
 </style>
