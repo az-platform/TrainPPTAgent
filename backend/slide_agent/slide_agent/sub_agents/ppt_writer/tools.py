@@ -201,6 +201,14 @@ def KnowledgeBaseSearch(keyword: str, tool_context: ToolContext):
     根据关键词搜索文档库
     :param keyword: str, 搜索的相关文档的关键词
     :return: 返回每篇文档数据
+
+    【健壮性修复 v2】
+    - v1: 返回 (True, {"documents": [], "metadatas": []}) tuple，ADK 序列化后变成
+      {"result": [true, {"documents": [], "metadatas": []}]}，模型理解为"这次关键词没命中"
+      会换个关键词继续搜，导致无限重试直到 CancelledError。
+    - v2: 有文档时返回文档内容字符串；无文档 / 服务不可达时返回明确的文本提示，
+      告诉模型"知识库中未找到相关内容，请直接根据已有信息生成，无需再搜索"，
+      从根本上打断重试循环。
     """
     topk = 5  # 搜索前5条结果
     metadata = tool_context.state.get("metadata", {})
@@ -208,10 +216,13 @@ def KnowledgeBaseSearch(keyword: str, tool_context: ToolContext):
     user_id = metadata.get("user_id", 999)
     if not user_id:
         user_id = 999
-    logger.info(f"❤️❤️❤️❤️😜😜😜😜😜调用知识库搜索接口, user_id: {user_id}, query: {keyword}, topk: {topk}")
-    print(f"❤️❤️❤️❤️😜😜😜😜😜调用知识库搜索接口, user_id: {user_id}, query: {keyword}, topk: {topk}")
+    logger.info(f"调用知识库搜索接口, user_id: {user_id}, query: {keyword}, topk: {topk}")
+    print(f"调用知识库搜索接口, user_id: {user_id}, query: {keyword}, topk: {topk}")
     PERSONAL_DB = os.environ.get('PERSONAL_DB', '')
-    assert PERSONAL_DB, "PERSONAL_DB is not set"
+    # 防御：PERSONAL_DB 没设就直接返回空结果提示，避免 assert 抛错把工具调用链炸掉
+    if not PERSONAL_DB:
+        logger.warning("PERSONAL_DB is not set, returning empty KB result")
+        return "知识库服务未配置，未找到相关文档。请直接根据已有信息生成内容，不要再调用知识库搜索。"
     url = f"{PERSONAL_DB}/search"
     # 正确的请求数据格式
     data = {
@@ -233,16 +244,21 @@ def KnowledgeBaseSearch(keyword: str, tool_context: ToolContext):
         result = response.json()
         documents = result.get("documents", [])
         metadatas = result.get("metadatas", [])
-        data = {"documents": documents, "metadatas": metadatas}
         print("Response status:", response.status_code)
         print("Response body:", result)
         logger.info(f"{PERSONAL_DB}搜索知识库返回状态: {response.status_code}")
         logger.info(f"{PERSONAL_DB}搜索知识库返回结果: {result}")
-        logger.info(f"{PERSONAL_DB}搜索知识库成功, 返回结果: {data}")
-        return True, data
+        if documents:
+            data = {"documents": documents, "metadatas": metadatas}
+            logger.info(f"{PERSONAL_DB}搜索知识库成功, 返回结果: {data}")
+            return json.dumps(data, ensure_ascii=False)
+        else:
+            logger.info(f"{PERSONAL_DB}搜索知识库返回空结果")
+            return "知识库中未找到与该关键词相关的文档。请直接根据已有信息生成内容，不要再调用知识库搜索。"
     except Exception as e:
-        print(f"{PERSONAL_DB}搜索知识库报错: {e}")
-        return False, f"{PERSONAL_DB}搜索知识库报错: {str(e)}"
+        # 关键：失败时返回明确的文本提示，让模型知道"搜不到"并停止重试
+        logger.warning(f"{PERSONAL_DB}搜索知识库失败（已降级为空结果提示）: {e}")
+        return "知识库服务暂时不可用，未找到相关文档。请直接根据已有信息生成内容，不要再调用知识库搜索。"
 
 if __name__ == '__main__':
     import asyncio

@@ -349,7 +349,15 @@ class EmbeddingModel(object):
         self.provider = os.environ["EMBEDDING_PROVIDER"].lower()
         self.dimensions = int(os.getenv("EMBEDDING_DIM", "0")) or None
 
-        if self.provider == "aliyun":
+        if self.provider == "glm":
+            api_key = os.getenv("GLM_API_KEY")
+            assert api_key, "GLM_API_KEY没有设置，无法使用智谱嵌入模型"
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url="https://open.bigmodel.cn/api/paas/v4",
+            )
+            self._impl = self._impl_openai_compatible
+        elif self.provider == "aliyun":
             api_key = os.getenv("ALI_API_KEY")
             assert api_key, "ALI_API_KEY没有设置，无法使用阿里云嵌入模型"
             self.client = OpenAI(
@@ -393,23 +401,29 @@ class EmbeddingModel(object):
     def do_embedding(self, texts: List[str]):
         """
         对数据进行embedding。返回：{"data":[{"embedding":[...]}, ...]}
+
+        【健壮性修复】原实现 except 静默吞掉异常返回 {"data": []}，导致：
+        1. cache_decorator 把空结果缓存到磁盘，后续请求全命中空缓存
+        2. ChromaDB 收到空嵌入列表报 "Expected Embeddings to be non-empty list"
+        修法：嵌入失败时直接抛异常，不返回残缺数据；同时让 cache_decorator
+        感知到失败（返回 (False, msg) 元组）从而跳过缓存。
         """
         assert isinstance(texts, list) and all(isinstance(t, str) for t in texts), "texts必须为字符串列表"
         max_batch_size = 10  # 可根据不同后端调整
         result = {"data": []}
         for i in range(0, len(texts), max_batch_size):
             batch = texts[i:i + max_batch_size]
-            try:
-                batch_out = self._impl(batch)
-                # 规范化为 {"data":[{"embedding":[...]}...]}
-                if isinstance(batch_out, dict) and "data" in batch_out:
-                    result["data"].extend(batch_out["data"])
-                else:
-                    # 兜底：如果只是返回了向量列表
-                    result["data"].extend([{"embedding": emb} for emb in batch_out])
-                logger.info(f"成功嵌入批次 {i // max_batch_size + 1}，包含 {len(batch)} 个文本")
-            except Exception as e:
-                logger.error(f"嵌入批次 {i // max_batch_size + 1} 失败: {e}", exc_info=True)
+            batch_out = self._impl(batch)
+            # 规范化为 {"data":[{"embedding":[...]}...]}
+            if isinstance(batch_out, dict) and "data" in batch_out:
+                result["data"].extend(batch_out["data"])
+            else:
+                # 兜底：如果只是返回了向量列表
+                result["data"].extend([{"embedding": emb} for emb in batch_out])
+            logger.info(f"成功嵌入批次 {i // max_batch_size + 1}，包含 {len(batch)} 个文本")
+        # 防御：全部批次完成后检查是否有有效嵌入
+        if not result["data"]:
+            return (False, f"嵌入失败：所有 {len(texts)} 个文本均未生成向量，请检查嵌入服务配置")
         logger.info(f"所有 {len(texts)} 个文本嵌入完成")
         return result
 

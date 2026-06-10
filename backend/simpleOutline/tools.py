@@ -19,12 +19,17 @@ logger = logging.getLogger(__name__)
 async def DocumentSearch(
     keyword: str,
     tool_context: ToolContext,
+    **kwargs,
 ):
     """
     根据关键词搜索文档
     :param keyword: str, 搜索的相关文档的关键词
     :return: 返回每篇文档数据
     """
+    # 防御：豆包等模型偶尔会把 JSON schema 字段（type / properties 等）误塞进 args
+    # 静默忽略，避免 TypeError 把整条大纲请求链炸断
+    if kwargs:
+        logger.info(f"DocumentSearch 收到非签名参数（已忽略）: {list(kwargs.keys())}")
     number = 3 # 默认搜索数量改小一些，防止有些本地模型的上下文过长
     agent_name = tool_context.agent_name
     logger.info(f"Agent{agent_name}正在调用工具：DocumentSearch: " + keyword)

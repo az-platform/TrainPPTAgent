@@ -99,10 +99,11 @@ class A2AOutlineClientWrapper:
                 self.logger.info(f"输出的chunk内容: {chunk}")
                 chunk_data = chunk.model_dump(mode='json', exclude_none=True)
                 if "error" in chunk_data:
+                    # 错误必须 raise 出 wrapper，让上层 main_api 的 except 接住并转成 5xx。
+                    # 旧的 yield fake final 会被 stream_agent_response 的 type==text 过滤静默吞掉，
+                    # 导致前端拿不到错误、以为成功。
                     self.logger.error(f"错误信息: {chunk_data['error']}")
-                    print(f"错误信息: {chunk_data['error']}")
-                    yield {"type": "final", "text": chunk_data['error'], "author": "system"}
-                    break
+                    raise RuntimeError(f"agent 上游错误: {chunk_data['error']}")
                 result = chunk_data["result"]
                 # 判断 chunk 类型
                 # 查看parts类型，分为data，text，reasoning，final，例如放入{"type": "text", "text": xxx}，最后yield返回

@@ -61,7 +61,28 @@ async def stream_agent_response(prompt: str, language: str = "chinese"):
 async def aippt_outline(request: AipptRequest):
     assert request.stream, "只支持流式的返回大纲"
     logger.info(f"前端*outline***=====>用户输入：{request.language}")
-    return StreamingResponse(stream_agent_response(request.content, request.language), media_type="text/plain")
+
+    # 预检查：先建连拿 agent card；agent 服务不可达就立刻 5xx
+    # 这样前端 assertOk 就能拦到，不会再出现"假成功"
+    wrapper = A2AOutlineClientWrapper(session_id=uuid.uuid4().hex, agent_url=OUTLINE_API)
+    try:
+        await wrapper.setup()
+    except Exception as e:
+        logger.exception("outline agent 预连失败")
+        raise HTTPException(status_code=502, detail=f"大纲 agent 服务不可用: {e}")
+
+    async def safe_outline_stream():
+        try:
+            async for chunk_data in wrapper.generate(request.content, request.language):
+                if chunk_data["type"] == "text":
+                    yield chunk_data["text"]
+        except Exception as e:
+            # 流已经开始，没法改 status；把错误以 ERROR: 前缀注入 stream body
+            # 前端 looksLikeValidOutline 会拒（无合法结构 + 命中错误关键字）
+            logger.exception("大纲生成过程中出错")
+            yield f"\n\nERROR: 大纲生成失败 - {e}\n"
+
+    return StreamingResponse(safe_outline_stream(), media_type="text/plain")
 
 
 @app.post("/tools/aippt_outline_from_file")
@@ -208,15 +229,28 @@ async def aippt_content(request: AipptContentRequest):
     # 兼容旧字段名：如果 user_id 为空就用 sessionId
     user_id = getattr(request, "user_id", None) or getattr(request, "sessionId", None)
 
+    # 预检查 content agent 服务是否可达
+    content_wrapper_precheck = A2AContentClientWrapper(session_id=uuid.uuid4().hex, agent_url=CONTENT_API)
+    try:
+        await content_wrapper_precheck.setup()
+    except Exception as e:
+        logger.exception("content agent 预连失败")
+        raise HTTPException(status_code=502, detail=f"内容 agent 服务不可用: {e}")
+
     async def event_generator():
-        async for chunk in stream_content_response(
-            markdown_content,
-            language=request.language,
-            generateFromUploadedFile=request.generateFromUploadedFile,
-            generateFromWebSearch=request.generateFromWebSearch,
-            user_id=user_id
-        ):
-            yield chunk
+        try:
+            async for chunk in stream_content_response(
+                markdown_content,
+                language=request.language,
+                generateFromUploadedFile=request.generateFromUploadedFile,
+                generateFromWebSearch=request.generateFromWebSearch,
+                user_id=user_id
+            ):
+                yield chunk
+        except Exception as e:
+            logger.exception("内容生成过程中出错")
+            # 以 SSE 帧形式发错误事件，前端 SSE parser 可识别
+            yield f"event: error\ndata: {json.dumps({'message': str(e)}, ensure_ascii=False)}\n\n".encode("utf-8")
 
     # 关键：SSE 推荐这些头
     return StreamingResponse(

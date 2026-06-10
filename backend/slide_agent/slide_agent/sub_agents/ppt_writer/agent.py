@@ -23,8 +23,22 @@ def my_before_model_callback(callback_context: CallbackContext, llm_request: Llm
     metadata = callback_context.state.get("metadata")
     print(f"调用了{agent_name}模型前的callback, 现在Agent共有{history_length}条历史记录,metadata数据为：{metadata}")
     logger.info(f"调用了{agent_name}模型前的callback, 现在Agent共有{history_length}条历史记录,metadata数据为：{metadata}")
-    #清空contents,不需要上一步的拆分topic的记录, 不能在这里清理，否则，每次调用工具都会清除记忆，白操作了
-    # llm_request.contents.clear()
+
+    # GLM API 兼容性修复：确保对话中至少有一条 user 角色的文本消息
+    # ADK 的 function_response 使用 role='user'，但 LiteLLM 转换后变成 role='tool'，
+    # 导致 OpenAI 格式请求中没有 'user' 消息，GLM API 返回 1214 错误。
+    # 仅在已有对话历史（如工具调用/响应）但缺少 user 文本消息时注入。
+    has_user_text = any(
+        c.role == 'user' and any(getattr(p, 'text', None) for p in c.parts)
+        for c in llm_request.contents
+    )
+    if not has_user_text and len(llm_request.contents) > 0:
+        llm_request.contents.insert(0, types.Content(
+            role='user',
+            parts=[types.Part(text='请根据系统指令完成内容生成。')]
+        ))
+        logger.info(f"GLM兼容性修复：已添加 user 消息以确保 API 兼容")
+
     # 返回 None，继续调用 LLM
     return None
 
