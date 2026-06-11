@@ -9,7 +9,7 @@ import os
 import litellm
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
-litellm._turn_on_debug()
+# litellm._turn_on_debug()  # 本地模型无需开启debug，否则产生大量费用计算警告
 
 load_dotenv()
 def create_model(model:str, provider: str):
@@ -109,10 +109,11 @@ def create_model(model:str, provider: str):
             model = "openai/" + model
         return LiteLlm(model=model, api_key=os.environ.get("OLLAMA_API_KEY"), api_base=os.environ.get("OLLAMA_API_URL"),num_retries=3)
     elif provider == "local":
-        assert os.environ.get("ALI_API_KEY"), "ALI_API_KEY is not set"
+        assert os.environ.get("LOCAL_API_KEY"), "LOCAL_API_KEY is not set"
+        assert os.environ.get("LOCAL_API_URL"), "LOCAL_API_URL is not set"
         if not model.startswith("openai/"):
             # 表示兼容openai的模型请求
             model = "openai/" + model
-        return LiteLlm(model=model, api_key=os.environ.get("ALI_API_KEY"), api_base="http://localhost:6688",num_retries=3)
+        return LiteLlm(model=model, api_key=os.environ.get("LOCAL_API_KEY"), api_base=os.environ.get("LOCAL_API_URL"), num_retries=3)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
