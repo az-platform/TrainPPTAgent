@@ -1,3 +1,4 @@
+import os
 from google.adk.agents.sequential_agent import SequentialAgent
 from google.adk.agents.callback_context import CallbackContext
 from google.genai import types  # 用于在回调里短路并给用户返回消息
@@ -7,6 +8,15 @@ from .utils import parse_markdown_to_slides  # 复用你已有的解析函数
 
 # 在模块顶部加载环境变量
 load_dotenv('.env')
+
+# 确保 httpx/LiteLLM 能读到代理变量（httpx 只认小写）
+for _var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']:
+    _val = os.environ.get(_var)
+    if _val:
+        if _var.isupper():
+            os.environ[_var.lower()] = _val
+        else:
+            os.environ[_var.upper()] = _val
 
 def _get_markdown_from_context(callback_context: CallbackContext) -> str | None:
     """

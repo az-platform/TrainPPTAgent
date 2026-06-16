@@ -316,10 +316,11 @@ async def aippt_file_id_streamer(id: str, language: str = "chinese"):
         outline += outline_trunk
     yield json.dumps({"type": "status", "message": "大纲生成完毕，即将生成PPT..."}, ensure_ascii=False) + '\n'
 
-    match = re.search(r"(# .*)", outline, flags=re.DOTALL)
-
-    if match:
-        result = outline[match.start():]
+    # 用 MULTILINE 模式：只匹配行首的 # 标题（避免 "我将先搜索...# xxx" 这种中间有 # 的情况）
+    # 找到第一个 # 标题行后，提取从该行开始的所有内容
+    first_heading_match = re.search(r'^#\s+\S', outline, re.MULTILINE)
+    if first_heading_match:
+        result = outline[first_heading_match.start():]
     else:
         result = outline
     logger.info(f"用户输入的markdown大纲是：{result}")

@@ -15,6 +15,15 @@ from dotenv import load_dotenv
 import prompt
 load_dotenv()
 
+# 确保 httpx/LiteLLM 能读到代理变量（httpx 只认小写）
+for _var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']:
+    _val = os.environ.get(_var)
+    if _val:
+        if _var.isupper():
+            os.environ[_var.lower()] = _val
+        else:
+            os.environ[_var.upper()] = _val
+
 def before_model_callback(callback_context: CallbackContext, llm_request: LlmRequest) -> Optional[LlmResponse]:
     # 1. 检查用户输入
     agent_name = callback_context.agent_name

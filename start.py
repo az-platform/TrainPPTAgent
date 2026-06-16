@@ -244,7 +244,7 @@ class ProductionStarter:
 
         # 检查Node.js
         try:
-            result = subprocess.run(['node', '--version'], capture_output=True, text=True, shell=True)
+            result = subprocess.run(['node', '--version'], capture_output=True, text=True)
             self.logger.info(f"Node.js版本: {result.stdout.strip()}")
         except FileNotFoundError:
             self.logger.error("未找到Node.js，请先安装Node.js")
@@ -278,7 +278,7 @@ class ProductionStarter:
         package_json = self.frontend_dir / 'package.json'
         if package_json.exists():
             self.logger.info("安装前端依赖...")
-            subprocess.run(['npm', 'install'], cwd=self.frontend_dir, check=True, shell=True)
+            subprocess.run(['npm', 'install'], cwd=self.frontend_dir, check=True)
 
         self.logger.info("✅ 依赖安装完成")
 
@@ -297,8 +297,7 @@ class ProductionStarter:
                 cwd=self.frontend_dir,
                 capture_output=True,
                 text=True,
-                check=True,
-                shell=True
+                check=True
             )
 
             if not self.dist_dir.exists():
@@ -378,7 +377,8 @@ class ProductionStarter:
                 cwd=service_dir,
                 stdout=log_f,
                 stderr=subprocess.STDOUT,
-                text=True
+                text=True,
+                env=os.environ.copy()
             )
 
             # 等待服务启动
@@ -409,7 +409,7 @@ class ProductionStarter:
                 stdout=log_f,
                 stderr=subprocess.STDOUT,
                 text=True,
-                shell=True
+                env=os.environ.copy()
             )
 
             # 等待服务启动
