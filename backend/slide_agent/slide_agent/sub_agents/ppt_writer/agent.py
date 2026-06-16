@@ -21,7 +21,12 @@ def my_before_model_callback(callback_context: CallbackContext, llm_request: Llm
     agent_name = callback_context.agent_name
     history_length = len(llm_request.contents)
     metadata = callback_context.state.get("metadata")
-    print(f"调用了{agent_name}模型前的callback, 现在Agent共有{history_length}条历史记录,metadata数据为：{metadata}")
+    try:
+        print(f"调用了{agent_name}模型前的callback, 现在Agent共有{history_length}条历史记录,metadata数据为：{metadata}")
+    except UnicodeEncodeError:
+        import sys
+        msg = f"调用了{agent_name}模型前的callback, 现在Agent共有{history_length}条历史记录,metadata数据为：{metadata}\n"
+        sys.stdout.buffer.write(msg.encode('utf-8', errors='replace'))
     logger.info(f"调用了{agent_name}模型前的callback, 现在Agent共有{history_length}条历史记录,metadata数据为：{metadata}")
 
     # GLM API 兼容性修复：确保对话中至少有一条 user 角色的文本消息
@@ -53,7 +58,12 @@ def my_after_model_callback(callback_context: CallbackContext, llm_response: Llm
             part_texts.append(part_text)
     part_text_content = "\n".join(part_texts)
     metadata = callback_context.state.get("metadata")
-    print(f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}")
+    try:
+        print(f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}")
+    except UnicodeEncodeError:
+        import sys
+        msg = f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}\n"
+        sys.stdout.buffer.write(msg.encode('utf-8', errors='replace'))
     logger.info(f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}")
     return None
 

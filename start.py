@@ -23,6 +23,21 @@ from dotenv import load_dotenv
 import glob
 import itertools
 
+# Windows 上 npm/node 实际是 .cmd 脚本，需要 shell=True
+IS_WINDOWS = sys.platform == 'win32'
+
+def _npm_cmd(args: list) -> list:
+    """返回兼容当前平台的 npm 命令"""
+    if IS_WINDOWS:
+        return ['npm.cmd'] + args
+    return ['npm'] + args
+
+def _node_cmd(args: list) -> list:
+    """返回兼容当前平台的 node 命令"""
+    if IS_WINDOWS:
+        return ['node.exe'] + args
+    return ['node'] + args
+
 # -----------------------------
 #多文件 tail -f 的实现
 # -----------------------------
@@ -244,7 +259,7 @@ class ProductionStarter:
 
         # 检查Node.js
         try:
-            result = subprocess.run(['node', '--version'], capture_output=True, text=True)
+            result = subprocess.run(_node_cmd(['--version']), capture_output=True, text=True)
             self.logger.info(f"Node.js版本: {result.stdout.strip()}")
         except FileNotFoundError:
             self.logger.error("未找到Node.js，请先安装Node.js")
@@ -278,7 +293,7 @@ class ProductionStarter:
         package_json = self.frontend_dir / 'package.json'
         if package_json.exists():
             self.logger.info("安装前端依赖...")
-            subprocess.run(['npm', 'install'], cwd=self.frontend_dir, check=True)
+            subprocess.run(_npm_cmd(['install']), cwd=self.frontend_dir, check=True)
 
         self.logger.info("✅ 依赖安装完成")
 
@@ -293,7 +308,7 @@ class ProductionStarter:
 
             # 执行构建
             result = subprocess.run(
-                ['npm', 'run', 'build'],
+                _npm_cmd(['run', 'build']),
                 cwd=self.frontend_dir,
                 capture_output=True,
                 text=True,
@@ -404,7 +419,7 @@ class ProductionStarter:
             log_f = open(log_file, 'a', encoding='utf-8', buffering=1)
 
             process = subprocess.Popen(
-                ['npm', 'run', 'dev'],
+                _npm_cmd(['run', 'dev']),
                 cwd=self.frontend_dir,
                 stdout=log_f,
                 stderr=subprocess.STDOUT,
