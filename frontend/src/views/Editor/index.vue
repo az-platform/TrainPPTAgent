@@ -58,10 +58,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useMainStore, useSlidesStore } from '@/store'
+import api from '@/services'
 import useGlobalHotkey from '@/hooks/useGlobalHotkey'
 import usePasteEvent from '@/hooks/usePasteEvent'
 import useExport from '@/hooks/useExport'
@@ -83,9 +84,35 @@ import MarkupPanel from './MarkupPanel.vue'
 import Modal from '@/components/Modal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const { slides } = storeToRefs(slidesStore)
+
+// 支持 url 带 session_id：从后端拉取外部应用（如 az-platform-web）注入的 pptist slides，
+// 并轮询刷新——az 端改了 PPT 会把新版本写入 session，这里按 version 变化同步
+let lastVersion = 0
+let pollTimer: ReturnType<typeof setInterval> | undefined
+const pollSession = async () => {
+  const sid = route.query.session_id as string | undefined
+  if (!sid) return
+  try {
+    const data = await api.getSession(sid)
+    if (data?.slides?.length && data.version !== lastVersion) {
+      lastVersion = data.version
+      slidesStore.setSlides(data.slides)
+    }
+  } catch (e) {
+    console.warn('按 session_id 同步 PPT 失败：', e)
+  }
+}
+onMounted(() => {
+  pollSession()
+  pollTimer = setInterval(pollSession, 3000)
+})
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 const { dialogForExport, showSelectPanel, showSearchPanel, showNotesPanel, showSymbolPanel, showMarkupPanel, isGenerating } = storeToRefs(mainStore)
 
 const closeExportDialog = () => mainStore.setDialogForExport('')

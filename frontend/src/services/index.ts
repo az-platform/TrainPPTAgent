@@ -43,6 +43,11 @@ export default {
     return axios.get(`${SERVER_URL}/templates`)
   },
 
+  // 按 session_id 加载外部应用注入的 PPT（slides 已是 pptist 格式）
+  getSession(sessionId: string): Promise<any> {
+    return axios.get(`${SERVER_URL}/session/${sessionId}`)
+  },
+
   AIPPT_Outline({
     content,
     language,

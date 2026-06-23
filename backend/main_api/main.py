@@ -411,6 +411,20 @@ async def proxy(request: Request, url: str = Query(..., description="Target abso
         media_type=upstream.headers.get("Content-Type"),
     )
 
+# PPT session 暂存（内存，demo 用）：外部应用按 session_id 注入 pptist slides，
+# TrainPPTAgent 的 editor 打开时按 url 的 session_id 拉取，实现跨应用编辑。
+_ppt_sessions: dict = {}
+
+@app.post("/session/{session_id}")
+async def save_ppt_session(session_id: str, request: Request):
+    data = await request.json()
+    _ppt_sessions[session_id] = data
+    return {"ok": True, "session_id": session_id}
+
+@app.get("/session/{session_id}")
+async def get_ppt_session(session_id: str):
+    return _ppt_sessions.get(session_id, {"slides": []})
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
