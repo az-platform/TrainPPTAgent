@@ -112,10 +112,7 @@ def process_and_vectorize_local_file(file_name: str, temp_file_path: str, id: in
         raise ValueError("分块后内容为空")
     logger.info(f"内容分块成功，共 {len(documents)} 块。")
 
-    # 步骤3: 检查环境变量
-    if not os.getenv("ALI_API_KEY"):
-        logger.error("ALI_API_KEY环境变量未设置")
-        raise ValueError("ALI_API_KEY环境变量未设置")
+    # 步骤3: key 校验由 EmbeddingModel 按 EMBEDDING_PROVIDER 统一执行（glm→GLM_API_KEY / aliyun→ALI_API_KEY）
 
     # 步骤4: 使用embedding_utils生成embedding向量并插入向量
     logger.info("初始化embedding模型")

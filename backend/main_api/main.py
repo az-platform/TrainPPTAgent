@@ -429,6 +429,31 @@ async def get_ppt_session(session_id: str):
 def healthz():
     return {"ok": True}
 
+@app.get("/config/models")
+def get_model_config():
+    """返回下游服务当前使用的模型配置（读 simpleOutline / slide_agent 的 .env），
+    供 az-platform-web 模型管理页展示真实配置；修改模型需编辑对应 .env 并重启该服务。"""
+    backend_dir = Path(__file__).parent.parent
+    outline = dotenv.dotenv_values(backend_dir / "simpleOutline" / ".env") or {}
+    slide = dotenv.dotenv_values(backend_dir / "slide_agent" / ".env") or {}
+    return {
+        "outline": {
+            "provider": outline.get("MODEL_PROVIDER", ""),
+            "model": outline.get("LLM_MODEL", ""),
+            "env": "backend/simpleOutline/.env",
+        },
+        "writer": {
+            "provider": slide.get("PPT_WRITER_PROVIDER", ""),
+            "model": slide.get("PPT_WRITER_MODEL", ""),
+            "env": "backend/slide_agent/.env",
+        },
+        "checker": {
+            "provider": slide.get("PPT_CHECKER_PROVIDER", ""),
+            "model": slide.get("PPT_CHECKER_MODEL", ""),
+            "env": "backend/slide_agent/.env",
+        },
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
